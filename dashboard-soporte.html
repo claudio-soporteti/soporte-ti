@@ -952,7 +952,6 @@
     text-transform: uppercase;
   }
 
-  /* Responsive */
   @media (max-width: 1100px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .two-col { grid-template-columns: 1fr; }
@@ -967,9 +966,96 @@
     .content { padding: 16px; }
     .topbar { padding: 12px 16px; }
   }
+
+  /* Login overlay */
+  .login-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  .login-overlay.show { display: flex; }
+  .login-card-dash {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 44px 36px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .login-logo-dash {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; margin: 0 auto 20px;
+  }
+  .login-title-dash {
+    font-family: var(--mono); font-size: 18px; font-weight: 700;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .login-sub-dash {
+    font-size: 13px; color: var(--text-dim); margin-bottom: 28px; line-height: 1.5;
+  }
+  .ms-btn {
+    width: 100%; padding: 14px 20px; background: #0078d4;
+    border: none; border-radius: 10px; color: white;
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 10px; transition: all 0.2s;
+  }
+  .ms-btn:hover { background: #106ebe; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,120,212,0.3); }
+  .ms-icon-grid { width: 20px; height: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex-shrink: 0; }
+  .ms-icon-grid span { border-radius: 1px; }
+  .login-note { margin-top: 16px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 </style>
 </head>
 <body>
+
+<!-- MSAL -->
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script>
+  const msalConfig = {
+    auth: {
+      clientId: '622e605a-8a6d-4177-8494-f48d59e16d1a',
+      authority: 'https://login.microsoftonline.com/fa89b9bd-9842-491b-8e7d-fab4b6179429',
+      redirectUri: 'https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html'
+    },
+    cache: { cacheLocation: 'sessionStorage' }
+  };
+
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  let dashUser = null;
+
+  async function initDashAuth() {
+    await msalInstance.initialize();
+    const response = await msalInstance.handleRedirectPromise();
+    if (response) dashUser = response.account;
+    else {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) dashUser = accounts[0];
+    }
+    if (dashUser) {
+      document.getElementById('loginOverlay').classList.remove('show');
+      document.getElementById('dashUserName').textContent = dashUser.name || dashUser.username;
+    } else {
+      document.getElementById('loginOverlay').classList.add('show');
+    }
+  }
+
+  window.doDashLogin = async function() {
+    try { await msalInstance.loginRedirect({ scopes: ['User.Read'] }); }
+    catch(e) { console.error(e); }
+  };
+
+  window.doDashLogout = function() { msalInstance.logoutRedirect(); };
+
+  initDashAuth();
+</script>
 
 <!-- Firebase -->
 <script type="module">
@@ -1023,6 +1109,25 @@
     }
   };
 </script>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card-dash">
+    <div class="login-logo-dash">🖥️</div>
+    <div class="login-title-dash">Panel de Soporte TI</div>
+    <div class="login-sub-dash">Acceso exclusivo para el equipo TI.<br>Inicia sesión con tu cuenta corporativa.</div>
+    <button class="ms-btn" onclick="doDashLogin()">
+      <div class="ms-icon-grid">
+        <span style="background:#f25022"></span>
+        <span style="background:#7fba00"></span>
+        <span style="background:#00a4ef"></span>
+        <span style="background:#ffb900"></span>
+      </div>
+      Iniciar sesión con Microsoft
+    </button>
+    <div class="login-note">Solo usuarios de SLEPAYSEN.CL pueden acceder.</div>
+  </div>
+</div>
 
 <!-- Sidebar -->
 <nav class="sidebar">
@@ -1087,6 +1192,10 @@
     <div class="topbar-right">
       <button class="topbar-btn" onclick="loadDemoData()">🔄 Recargar</button>
       <button class="topbar-btn primary" onclick="window.open('ingreso-requerimiento.html','_blank')">+ Nuevo ticket</button>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+        <span style="font-size:12px;color:var(--text-dim)" id="dashUserName">Usuario</span>
+        <button class="topbar-btn" style="padding:4px 10px;font-size:11px" onclick="doDashLogout()">Salir</button>
+      </div>
     </div>
   </div>
 

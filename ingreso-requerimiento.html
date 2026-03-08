@@ -638,9 +638,144 @@
     font-size: 10px;
     letter-spacing: 0.08em;
   }
+
+  /* Login screen */
+  .login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 32px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+  }
+
+  .login-logo {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin: 0 auto 20px;
+  }
+
+  .login-title {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+
+  .ms-login-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: #0078d4;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
+  }
+
+  .ms-login-btn:hover {
+    background: #106ebe;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0,120,212,0.3);
+  }
+
+  .ms-icon {
+    width: 20px; height: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .ms-icon span {
+    border-radius: 1px;
+  }
+
+  .login-footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .user-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,229,160,0.06);
+    border: 1px solid rgba(0,229,160,0.15);
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .user-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .user-name { flex: 1; font-weight: 500; }
+
+  .logout-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--sans);
+  }
+
+  .logout-btn:hover { border-color: var(--text-dim); color: var(--text); }
 </style>
 </head>
 <body>
+
+<!-- MSAL (Microsoft Login) -->
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -651,6 +786,62 @@
   // ║  REEMPLAZA ESTOS VALORES CON TU PROYECTO FIREBASE  ║
   // ║  Firebase Console → Configuración → Tu app web     ║
   // ╚══════════════════════════════════════════════════════╝
+  // ── Azure AD (Microsoft Login) ──────────────────────────
+  const msalConfig = {
+    auth: {
+      clientId: '622e605a-8a6d-4177-8494-f48d59e16d1a',
+      authority: 'https://login.microsoftonline.com/fa89b9bd-9842-491b-8e7d-fab4b6179429',
+      redirectUri: 'https://claudio-soporteti.github.io/soporte-ti/ingreso-requerimiento.html'
+    },
+    cache: { cacheLocation: 'sessionStorage' }
+  };
+
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  let currentUser = null;
+
+  async function initAuth() {
+    await msalInstance.initialize();
+    const response = await msalInstance.handleRedirectPromise();
+    if (response) currentUser = response.account;
+    else {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) currentUser = accounts[0];
+    }
+    if (currentUser) showApp();
+    else showLogin();
+  }
+
+  function showLogin() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('formView').style.display = 'none';
+    document.getElementById('successView').style.display = 'none';
+  }
+
+  function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('formView').style.display = 'block';
+    document.getElementById('userNameDisplay').textContent = currentUser.name || currentUser.username;
+    document.getElementById('userInitial').textContent = (currentUser.name||'U')[0].toUpperCase();
+    // Pre-fill nombre y email
+    const nameEl = document.getElementById('nombre');
+    const emailEl = document.getElementById('email');
+    if (nameEl && currentUser.name) nameEl.value = currentUser.name;
+    if (emailEl && currentUser.username) emailEl.value = currentUser.username;
+  }
+
+  window.doLogin = async function() {
+    try {
+      await msalInstance.loginRedirect({ scopes: ['User.Read'] });
+    } catch(e) { console.error(e); }
+  };
+
+  window.doLogout = function() {
+    msalInstance.logoutRedirect();
+  };
+
+  initAuth();
+
+  // ── Firebase ──────────────────────────────────────────
   const firebaseConfig = {
     apiKey: "AIzaSyArLMMZ9Bcp2QrQXnWz7pKcZIHeDsH1NDs",
     authDomain: "tkslepays.firebaseapp.com",
@@ -751,6 +942,28 @@
   };
 </script>
 
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">🖥️</div>
+    <div class="login-title">Soporte TI</div>
+    <div class="login-subtitle">Inicia sesión con tu cuenta corporativa para ingresar un requerimiento</div>
+    <button class="ms-login-btn" onclick="doLogin()">
+      <div class="ms-icon">
+        <span style="background:#f25022"></span>
+        <span style="background:#7fba00"></span>
+        <span style="background:#00a4ef"></span>
+        <span style="background:#ffb900"></span>
+      </div>
+      Iniciar sesión con Microsoft
+    </button>
+    <div class="login-footer">
+      Solo usuarios de SLEPAYSEN.CL pueden acceder.<br>
+      Tus datos están protegidos por Azure AD.
+    </div>
+  </div>
+</div>
+
 <div id="formView">
   <!-- Header -->
   <div class="header">
@@ -763,6 +976,11 @@
     <div class="ticket-badge">
       <div class="ticket-dot"></div>
       Sistema activo · Se asignará automáticamente
+    </div>
+    <div class="user-bar" id="userBar" style="margin-top:12px">
+      <div class="user-avatar" id="userInitial">U</div>
+      <span class="user-name" id="userNameDisplay">Usuario</span>
+      <button class="logout-btn" onclick="doLogout()">Salir</button>
     </div>
   </div>
 
