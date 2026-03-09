@@ -1214,11 +1214,7 @@
     });
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDashAuth);
-  } else {
-    initDashAuth();
-  }
+  initDashAuth();
 </script>
 
 <!-- Firebase -->
@@ -1251,7 +1247,7 @@
       const q = query(collection(db, 'requerimientos'), orderBy('timestampCreacion', 'desc'));
       unsubscribe = onSnapshot(q, (snapshot) => {
         const tickets = [];
-        snapshot.forEach(doc => tickets.push({ id: doc.id, ...doc.data() }));
+        snapshot.forEach(doc => tickets.push({ firestoreId: doc.id, id: doc.id, ...doc.data() }));
         window.renderTickets(tickets);
         document.getElementById('stat-total').textContent = tickets.length;
         document.getElementById('stat-pendientes').textContent = tickets.filter(t => t.estado === 'pendiente').length;
@@ -1280,7 +1276,7 @@
     <div class="denied-icon">🚫</div>
     <div class="denied-title">ACCESO DENEGADO</div>
     <div class="denied-msg">Tu cuenta no tiene permisos para acceder al Panel de Soporte TI. Contacta al administrador del sistema.</div>
-    <div class="denied-email" id="deniedEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="89eae6fbfbece6c9fae5ecf9e8f0faece7a7eae5">[email&#160;protected]</a></div>
+    <div class="denied-email" id="deniedEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="43202c3131262c03302f2633223a30262d6d202f">[email&#160;protected]</a></div>
     <button class="ms-btn" onclick="doDashLogout()" style="background:var(--red)">Cerrar sesión</button>
   </div>
 </div>
@@ -1362,7 +1358,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <h2>Dashboard · Soporte Informático</h2>
-      <p id="current-date"></p>
+      <p id="current-date">Cargando fecha...</p>
     </div>
     <div class="topbar-right">
       <button class="topbar-btn" onclick="loadDemoData()">🔄 Recargar</button>
@@ -1370,7 +1366,7 @@
       <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <span style="font-size:12px;color:var(--text-dim)" id="dashUserName">Usuario</span>
-          <span class="role-badge" id="dashUserRole"></span>
+          <span class="role-badge" id="dashUserRole">Cargando...</span>
         </div>
         <button class="topbar-btn" style="padding:4px 10px;font-size:11px" onclick="doDashLogout()">Salir</button>
       </div>
@@ -1858,7 +1854,6 @@ function saveTicket() {
 
   // Enviar correo al agente si fue asignado o reasignado
   if (t?.asignadoA && t.asignadoA !== anteriorAgente) {
-    const linkTicket = `https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html`;
     emailjs.send("service_2mvqpfu", "template_o9ibohn", {
       email_agente: t.asignadoA,
       nombre_agente: t.asignadoA.split('@')[0],
@@ -1868,9 +1863,9 @@ function saveTicket() {
       prioridad: t.prioridad || 'Normal',
       titulo: t.titulo || 'Sin título',
       descripcion: t.descripcion || '',
-      link_ticket: linkTicket
+      link_ticket: 'https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html'
     }).then(() => {
-      console.log('📧 Correo enviado al agente:', t.asignadoA);
+      showToast('📧 Correo enviado al agente');
     }).catch(err => {
       console.error('Error enviando correo al agente:', err);
     });
