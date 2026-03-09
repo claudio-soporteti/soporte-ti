@@ -1032,27 +1032,76 @@
   let dashUser = null;
 
   async function initDashAuth() {
-    await msalInstance.initialize();
-    const response = await msalInstance.handleRedirectPromise();
-    if (response) dashUser = response.account;
-    else {
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) dashUser = accounts[0];
-    }
-    if (dashUser) {
-      document.getElementById('loginOverlay').classList.remove('show');
-      document.getElementById('dashUserName').textContent = dashUser.name || dashUser.username;
-    } else {
-      document.getElementById('loginOverlay').classList.add('show');
+    try {
+      await msalInstance.initialize();
+
+      // Manejar respuesta de redirect si venimos de login
+      try {
+        const response = await msalInstance.handleRedirectPromise();
+        if (response && response.account) {
+          dashUser = response.account;
+          msalInstance.setActiveAccount(dashUser);
+        }
+      } catch(e) {
+        console.warn('handleRedirectPromise error:', e);
+      }
+
+      // Verificar si ya hay sesión activa
+      if (!dashUser) {
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          dashUser = accounts[0];
+          msalInstance.setActiveAccount(dashUser);
+        }
+      }
+
+      if (dashUser) {
+        showDashboard();
+      } else {
+        showLoginOverlay();
+      }
+    } catch(e) {
+      console.error('Auth init error:', e);
+      showLoginOverlay();
     }
   }
 
+  function showDashboard() {
+    document.getElementById('loginOverlay').style.display = 'none';
+    const nameEl = document.getElementById('dashUserName');
+    if (nameEl) nameEl.textContent = dashUser.name || dashUser.username;
+  }
+
+  function showLoginOverlay() {
+    document.getElementById('loginOverlay').style.display = 'flex';
+  }
+
   window.doDashLogin = async function() {
-    try { await msalInstance.loginRedirect({ scopes: ['User.Read'] }); }
-    catch(e) { console.error(e); }
+    const btn = document.querySelector('.ms-btn');
+    if (btn) { btn.textContent = 'Conectando...'; btn.disabled = true; }
+    try {
+      // Intentar popup primero (mejor experiencia)
+      const response = await msalInstance.loginPopup({ scopes: ['User.Read'] });
+      if (response && response.account) {
+        dashUser = response.account;
+        msalInstance.setActiveAccount(dashUser);
+        showDashboard();
+      }
+    } catch(e) {
+      console.warn('Popup bloqueado, usando redirect:', e);
+      // Si popup falla (bloqueado), usar redirect
+      try {
+        await msalInstance.loginRedirect({ scopes: ['User.Read'] });
+      } catch(e2) {
+        console.error('Login redirect error:', e2);
+        if (btn) { btn.textContent = 'Iniciar sesión con Microsoft'; btn.disabled = false; }
+      }
+    }
   };
 
-  window.doDashLogout = function() { msalInstance.logoutRedirect(); };
+  window.doDashLogout = function() {
+    msalInstance.logoutRedirect({ postLogoutRedirectUri: 'https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html' });
+  };
 
   initDashAuth();
 </script>
@@ -1111,7 +1160,7 @@
 </script>
 
 <!-- Login Overlay -->
-<div class="login-overlay" id="loginOverlay">
+<div class="login-overlay" id="loginOverlay" style="display:none">
   <div class="login-card-dash">
     <div class="login-logo-dash">🖥️</div>
     <div class="login-title-dash">Panel de Soporte TI</div>
