@@ -1214,7 +1214,12 @@
     });
   };
 
-  initDashAuth();
+  // Esperar DOM antes de inicializar auth
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashAuth);
+  } else {
+    setTimeout(initDashAuth, 100);
+  }
 </script>
 
 <!-- Firebase -->
@@ -1842,7 +1847,6 @@ function saveTicket() {
   if (!currentTicketId) return;
   const t = tickets.find(x => x.id === currentTicketId);
   const anteriorAgente = t?.asignadoA;
-
   if (t) {
     t.estado = document.getElementById('modal-status').value;
     t.asignadoA = document.getElementById('modal-assign').value || null;
@@ -1851,7 +1855,6 @@ function saveTicket() {
     window.updateTicket(t.firestoreId, 'estado', t.estado);
     window.updateTicket(t.firestoreId, 'asignadoA', t.asignadoA);
   }
-
   // Enviar correo al agente si fue asignado o reasignado
   if (t?.asignadoA && t.asignadoA !== anteriorAgente) {
     emailjs.send("service_2mvqpfu", "template_o9ibohn", {
@@ -1864,13 +1867,9 @@ function saveTicket() {
       titulo: t.titulo || 'Sin título',
       descripcion: t.descripcion || '',
       link_ticket: 'https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html'
-    }).then(() => {
-      showToast('📧 Correo enviado al agente');
-    }).catch(err => {
-      console.error('Error enviando correo al agente:', err);
-    });
+    }).then(() => showToast('📧 Correo enviado al agente'))
+      .catch(err => console.error('Error correo agente:', err));
   }
-
   renderKanban(tickets);
   updateStats();
   closeModal();
