@@ -1050,6 +1050,8 @@
 
 <!-- MSAL -->
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>emailjs.init("_eQGso2IZC1biexhu");</script>
 <script>
   // ══════════════════════════════════════════════════════
   // CONTROL DE ACCESO — ROLES Y ÁREAS
@@ -1274,7 +1276,7 @@
     <div class="denied-icon">🚫</div>
     <div class="denied-title">ACCESO DENEGADO</div>
     <div class="denied-msg">Tu cuenta no tiene permisos para acceder al Panel de Soporte TI. Contacta al administrador del sistema.</div>
-    <div class="denied-email" id="deniedEmail">correo@slepaysen.cl</div>
+    <div class="denied-email" id="deniedEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="89eae6fbfbece6c9fae5ecf9e8f0faece7a7eae5">[email&#160;protected]</a></div>
     <button class="ms-btn" onclick="doDashLogout()" style="background:var(--red)">Cerrar sesión</button>
   </div>
 </div>
@@ -1699,7 +1701,7 @@
 
 <div class="toast" id="toast">✓ Acción completada</div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ══════════════════════════════════════════
 // DATOS DEMO
 // ══════════════════════════════════════════
@@ -1839,6 +1841,8 @@ function closeModal() {
 function saveTicket() {
   if (!currentTicketId) return;
   const t = tickets.find(x => x.id === currentTicketId);
+  const anteriorAgente = t?.asignadoA;
+
   if (t) {
     t.estado = document.getElementById('modal-status').value;
     t.asignadoA = document.getElementById('modal-assign').value || null;
@@ -1847,6 +1851,27 @@ function saveTicket() {
     window.updateTicket(t.firestoreId, 'estado', t.estado);
     window.updateTicket(t.firestoreId, 'asignadoA', t.asignadoA);
   }
+
+  // Enviar correo al agente si fue asignado o reasignado
+  if (t?.asignadoA && t.asignadoA !== anteriorAgente) {
+    const linkTicket = `https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html`;
+    emailjs.send("service_2mvqpfu", "template_o9ibohn", {
+      email_agente: t.asignadoA,
+      nombre_agente: t.asignadoA.split('@')[0],
+      nombre: t.nombre || 'Solicitante',
+      ticket_id: t.ticketId || t.id,
+      categoria: t.tipo || 'No especificada',
+      prioridad: t.prioridad || 'Normal',
+      titulo: t.titulo || 'Sin título',
+      descripcion: t.descripcion || '',
+      link_ticket: linkTicket
+    }).then(() => {
+      console.log('📧 Correo enviado al agente:', t.asignadoA);
+    }).catch(err => {
+      console.error('Error enviando correo al agente:', err);
+    });
+  }
+
   renderKanban(tickets);
   updateStats();
   closeModal();
@@ -1891,16 +1916,4 @@ function loadDemoData() {
 function setDate() {
   const now = new Date();
   const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
-  document.getElementById('current-date').textContent = now.toLocaleDateString('es-CL', opts);
-}
-
-// Init
-document.addEventListener('DOMContentLoaded', () => {
-  setDate();
-  renderKanban(demoTickets);
-  renderActivity();
-  updateStats();
-});
-</script>
-</body>
-</html>
+  document.getElementById('current-date

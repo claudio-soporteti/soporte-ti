@@ -777,6 +777,10 @@
 <!-- MSAL (Microsoft Login) -->
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>emailjs.init("_eQGso2IZC1biexhu");</script>
+
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -924,8 +928,21 @@
       localStorage.setItem('req_demo', JSON.stringify(existing));
     }
 
-    // Simular envío de email (requiere backend/Power Automate)
-    console.log('📧 Notificación pendiente para:', email, '| Ticket:', ticketId);
+    // Enviar correo de confirmación al solicitante via EmailJS
+    try {
+      await emailjs.send("service_2mvqpfu", "template_03hr8dt", {
+        nombre: nombre,
+        email: email,
+        ticket_id: ticketId,
+        categoria: tipo,
+        prioridad: prioridad,
+        titulo: titulo,
+        descripcion: descripcion
+      });
+      console.log('📧 Correo de confirmación enviado a:', email);
+    } catch(e) {
+      console.error('Error enviando correo:', e);
+    }
 
     // Mostrar éxito
     document.getElementById('ticketIdDisplay').textContent = ticketId;
