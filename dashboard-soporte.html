@@ -1012,6 +1012,38 @@
   .ms-icon-grid { width: 20px; height: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex-shrink: 0; }
   .ms-icon-grid span { border-radius: 1px; }
   .login-note { margin-top: 16px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Access denied */
+  .denied-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  .denied-card {
+    background: var(--surface);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 20px;
+    padding: 44px 36px;
+    max-width: 400px;
+    text-align: center;
+  }
+  .denied-icon { font-size: 48px; margin-bottom: 16px; }
+  .denied-title { font-family: var(--mono); font-size: 16px; color: var(--red); margin-bottom: 8px; }
+  .denied-msg { font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-bottom: 20px; }
+  .denied-email { font-family: var(--mono); font-size: 12px; color: var(--text-muted); background: var(--surface2); padding: 8px 14px; border-radius: 8px; margin-bottom: 20px; }
+
+  /* Role badge */
+  .role-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    letter-spacing: 0.05em;
+  }
 </style>
 </head>
 <body>
@@ -1019,6 +1051,41 @@
 <!-- MSAL -->
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <script>
+  // ══════════════════════════════════════════════════════
+  // CONTROL DE ACCESO — ROLES Y ÁREAS
+  // ══════════════════════════════════════════════════════
+  const ROLES = {
+    superadmin: [
+      'claudio.urra@slepaysen.cl',
+      'pablo.gaete@slepaysen.cl'
+    ],
+    agentes: {
+      'Informática / TI': [
+        'matias.munoz@slepaysen.cl',
+        'marcelo.cortes@slepaysen.cl',
+        'pablo.gaete@slepaysen.cl',
+        'soporte@slepaysen.cl'
+      ],
+      'Recursos Humanos': [
+        'gdp@slepaysen.cl'
+      ],
+      'Administración': [],    // pendiente
+      'Finanzas': [],          // pendiente
+      'Infraestructura': []    // pendiente
+    }
+  };
+
+  // Obtener rol y área del usuario
+  function getUserRole(email) {
+    const e = email.toLowerCase();
+    if (ROLES.superadmin.includes(e)) return { rol: 'superadmin', area: 'Todas las áreas' };
+    for (const [area, emails] of Object.entries(ROLES.agentes)) {
+      if (emails.includes(e)) return { rol: 'agente', area };
+    }
+    return null; // sin acceso
+  }
+
+  // ── MSAL CONFIG ────────────────────────────────────────
   const msalConfig = {
     auth: {
       clientId: '622e605a-8a6d-4177-8494-f48d59e16d1a',
@@ -1030,23 +1097,19 @@
 
   const msalInstance = new msal.PublicClientApplication(msalConfig);
   let dashUser = null;
+  let userRoleInfo = null;
 
   async function initDashAuth() {
     try {
       await msalInstance.initialize();
-
-      // Manejar respuesta de redirect si venimos de login
       try {
         const response = await msalInstance.handleRedirectPromise();
         if (response && response.account) {
           dashUser = response.account;
           msalInstance.setActiveAccount(dashUser);
         }
-      } catch(e) {
-        console.warn('handleRedirectPromise error:', e);
-      }
+      } catch(e) { console.warn('redirect promise:', e); }
 
-      // Verificar si ya hay sesión activa
       if (!dashUser) {
         const accounts = msalInstance.getAllAccounts();
         if (accounts.length > 0) {
@@ -1056,7 +1119,14 @@
       }
 
       if (dashUser) {
-        showDashboard();
+        const email = dashUser.username.toLowerCase();
+        userRoleInfo = getUserRole(email);
+        if (!userRoleInfo) {
+          // Usuario sin acceso
+          showAccessDenied(email);
+        } else {
+          showDashboard();
+        }
       } else {
         showLoginOverlay();
       }
@@ -1068,39 +1138,78 @@
 
   function showDashboard() {
     document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('accessDeniedOverlay').style.display = 'none';
+
+    // Nombre usuario
     const nameEl = document.getElementById('dashUserName');
     if (nameEl) nameEl.textContent = dashUser.name || dashUser.username;
+
+    // Badge de rol
+    const roleEl = document.getElementById('dashUserRole');
+    if (roleEl) {
+      roleEl.textContent = userRoleInfo.rol === 'superadmin' ? '⭐ Superadmin' : `👤 ${userRoleInfo.area}`;
+      roleEl.style.color = userRoleInfo.rol === 'superadmin' ? 'var(--yellow)' : 'var(--accent3)';
+    }
+
+    // Si es agente (no superadmin), filtrar el dropdown de asignación
+    if (userRoleInfo.rol === 'agente') {
+      filtrarAsignacionPorArea(userRoleInfo.area);
+    }
+
+    // Guardar en window para uso global
+    window.currentUserRole = userRoleInfo;
+    window.currentUserEmail = dashUser.username.toLowerCase();
   }
 
   function showLoginOverlay() {
     document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('accessDeniedOverlay').style.display = 'none';
+  }
+
+  function showAccessDenied(email) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('accessDeniedOverlay').style.display = 'flex';
+    const el = document.getElementById('deniedEmail');
+    if (el) el.textContent = email;
+  }
+
+  function filtrarAsignacionPorArea(area) {
+    // Filtrar select de asignación en modal al agentes de su área
+    const agentesArea = ROLES.agentes[area] || [];
+    window.agentesPermitidos = agentesArea;
   }
 
   window.doDashLogin = async function() {
     const btn = document.querySelector('.ms-btn');
     if (btn) { btn.textContent = 'Conectando...'; btn.disabled = true; }
     try {
-      // Intentar popup primero (mejor experiencia)
       const response = await msalInstance.loginPopup({ scopes: ['User.Read'] });
       if (response && response.account) {
         dashUser = response.account;
         msalInstance.setActiveAccount(dashUser);
-        showDashboard();
+        const email = dashUser.username.toLowerCase();
+        userRoleInfo = getUserRole(email);
+        if (!userRoleInfo) {
+          showAccessDenied(email);
+        } else {
+          showDashboard();
+        }
       }
     } catch(e) {
       console.warn('Popup bloqueado, usando redirect:', e);
-      // Si popup falla (bloqueado), usar redirect
       try {
         await msalInstance.loginRedirect({ scopes: ['User.Read'] });
       } catch(e2) {
-        console.error('Login redirect error:', e2);
+        console.error(e2);
         if (btn) { btn.textContent = 'Iniciar sesión con Microsoft'; btn.disabled = false; }
       }
     }
   };
 
   window.doDashLogout = function() {
-    msalInstance.logoutRedirect({ postLogoutRedirectUri: 'https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html' });
+    msalInstance.logoutRedirect({
+      postLogoutRedirectUri: 'https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html'
+    });
   };
 
   initDashAuth();
@@ -1158,6 +1267,17 @@
     }
   };
 </script>
+
+<!-- Access Denied Overlay -->
+<div class="denied-overlay" id="accessDeniedOverlay">
+  <div class="denied-card">
+    <div class="denied-icon">🚫</div>
+    <div class="denied-title">ACCESO DENEGADO</div>
+    <div class="denied-msg">Tu cuenta no tiene permisos para acceder al Panel de Soporte TI. Contacta al administrador del sistema.</div>
+    <div class="denied-email" id="deniedEmail">correo@slepaysen.cl</div>
+    <button class="ms-btn" onclick="doDashLogout()" style="background:var(--red)">Cerrar sesión</button>
+  </div>
+</div>
 
 <!-- Login Overlay -->
 <div class="login-overlay" id="loginOverlay" style="display:none">
@@ -1242,7 +1362,10 @@
       <button class="topbar-btn" onclick="loadDemoData()">🔄 Recargar</button>
       <button class="topbar-btn primary" onclick="window.open('ingreso-requerimiento.html','_blank')">+ Nuevo ticket</button>
       <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
-        <span style="font-size:12px;color:var(--text-dim)" id="dashUserName">Usuario</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          <span style="font-size:12px;color:var(--text-dim)" id="dashUserName">Usuario</span>
+          <span class="role-badge" id="dashUserRole">Cargando...</span>
+        </div>
         <button class="topbar-btn" style="padding:4px 10px;font-size:11px" onclick="doDashLogout()">Salir</button>
       </div>
     </div>
@@ -1522,10 +1645,27 @@
           <div class="modal-label">Asignar a</div>
           <select class="assign-select" id="modal-assign">
             <option value="">Sin asignar</option>
-            <option value="ana">Ana Martínez</option>
-            <option value="carlos">Carlos Vega</option>
-            <option value="sofia">Sofía Reyes</option>
-            <option value="diego">Diego Fuentes</option>
+            <optgroup label="⭐ Superadmins">
+              <option value="claudio.urra@slepaysen.cl">Claudio Urra</option>
+              <option value="pablo.gaete@slepaysen.cl">Pablo Gaete</option>
+            </optgroup>
+            <optgroup label="💻 Informática / TI">
+              <option value="matias.munoz@slepaysen.cl">Matías Muñoz</option>
+              <option value="marcelo.cortes@slepaysen.cl">Marcelo Cortés</option>
+              <option value="soporte@slepaysen.cl">Soporte TI</option>
+            </optgroup>
+            <optgroup label="👥 Recursos Humanos">
+              <option value="gdp@slepaysen.cl">GDP (RRHH)</option>
+            </optgroup>
+            <optgroup label="🏢 Administración">
+              <option value="" disabled>Pendiente de configurar</option>
+            </optgroup>
+            <optgroup label="💰 Finanzas">
+              <option value="" disabled>Pendiente de configurar</option>
+            </optgroup>
+            <optgroup label="🏗️ Infraestructura">
+              <option value="" disabled>Pendiente de configurar</option>
+            </optgroup>
           </select>
         </div>
       </div>
