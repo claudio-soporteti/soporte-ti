@@ -1860,7 +1860,7 @@ function saveTicket() {
       prioridad: t.prioridad || 'Normal',
       titulo: t.titulo || 'Sin título',
       descripcion: t.descripcion || '',
-      link_ticket: 'https://claudio-soporteti.github.io/soporte-ti/dashboard-soporte.html'
+      link_ticket: `https://claudio-soporteti.github.io/soporte-ti/ticket-detalle.html?id=${t.firestoreId || t.id}`
     }).then(() => showToast('📧 Correo enviado al agente'))
       .catch(err => console.error('Error correo agente:', err));
   }

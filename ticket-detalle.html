@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ticket — Soporte TI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>emailjs.init("_eQGso2IZC1biexhu");</script>
+<style>
+  :root {
+    --bg: #07090f;
+    --surface: #0f1118;
+    --surface2: #161923;
+    --surface3: #1d2130;
+    --border: #252a3a;
+    --border2: #2f3650;
+    --accent: #4f8ef7;
+    --accent2: #7c3aed;
+    --accent3: #06b6d4;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --orange: #f97316;
+    --text: #e2e8f5;
+    --text-dim: #7c8db5;
+    --text-muted: #3d4968;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79,142,247,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,247,0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; padding: 32px 20px 60px; }
+
+  /* Topbar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; }
+  .topbar-logo-icon { font-size: 20px; }
+  .topbar-logo-name { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .topbar-logo-sub { font-size: 11px; color: var(--text-muted); }
+  .topbar-user { display: flex; align-items: center; gap: 8px; }
+  .user-name { font-size: 12px; color: var(--text-dim); }
+  .role-badge { font-family: var(--mono); font-size: 10px; color: var(--yellow); }
+  .btn-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-dim); text-decoration: none;
+    padding: 6px 12px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface2);
+    cursor: pointer; transition: all 0.2s;
+    font-family: var(--mono);
+  }
+  .btn-back:hover { color: var(--text); border-color: var(--accent); }
+
+  /* Ticket header */
+  .ticket-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ticket-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+  }
+  .ticket-id-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .ticket-id {
+    font-family: var(--mono); font-size: 13px;
+    color: var(--accent); background: rgba(79,142,247,0.1);
+    padding: 4px 10px; border-radius: 6px;
+    border: 1px solid rgba(79,142,247,0.2);
+  }
+  .prio-badge {
+    font-family: var(--mono); font-size: 10px;
+    padding: 3px 8px; border-radius: 4px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .prio-alta { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+  .prio-media { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .prio-baja { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+  .estado-badge {
+    font-family: var(--mono); font-size: 10px;
+    padding: 3px 8px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .ticket-titulo {
+    font-size: 22px; font-weight: 600; color: var(--text);
+    margin-bottom: 8px; line-height: 1.3;
+  }
+  .ticket-meta {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    font-size: 12px; color: var(--text-dim);
+  }
+  .ticket-meta span { display: flex; align-items: center; gap: 4px; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 14px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+
+  /* Descripción */
+  .descripcion-text {
+    font-size: 14px; color: var(--text-dim);
+    line-height: 1.7; white-space: pre-wrap;
+  }
+
+  /* Solicitante */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .info-item label { font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px; }
+  .info-item span { font-size: 13px; color: var(--text); }
+
+  /* Acciones */
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+  .select-field {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .select-field:focus { border-color: var(--accent); }
+  .select-field option { background: var(--surface2); }
+
+  .field-label {
+    font-size: 11px; color: var(--text-muted);
+    margin-bottom: 6px; display: block;
+    font-family: var(--mono); text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .comment-area {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 12px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    resize: vertical;
+    min-height: 90px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .comment-area:focus { border-color: var(--accent); }
+  .comment-area::placeholder { color: var(--text-muted); }
+
+  .btn-save {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 13px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--sans);
+    margin-top: 4px;
+  }
+  .btn-save:hover { background: #3a7de8; transform: translateY(-1px); }
+  .btn-save:active { transform: translateY(0); }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Historial de comentarios */
+  .comentario-item {
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .comentario-autor { font-size: 11px; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+  .comentario-texto { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+  .comentario-fecha { font-size: 10px; color: var(--text-muted); margin-top: 4px; font-family: var(--mono); }
+  .comentarios-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px; }
+
+  /* Estado colors */
+  .estado-pendiente { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+  .estado-en_triaje { background: rgba(249,115,22,0.1); color: #f97316; border: 1px solid rgba(249,115,22,0.2); }
+  .estado-en_progreso { background: rgba(6,182,212,0.1); color: #06b6d4; border: 1px solid rgba(6,182,212,0.2); }
+  .estado-resuelto { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+  .estado-cerrado { background: rgba(124,141,181,0.1); color: #7c8db5; border: 1px solid rgba(124,141,181,0.2); }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--green); color: white;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s; z-index: 9999;
+    font-family: var(--sans);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { background: var(--red); }
+
+  /* Loading */
+  .loading-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-dim);
+  }
+  .loading-spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Login overlay */
+  .login-overlay {
+    position: fixed; inset: 0;
+    background: rgba(7,9,15,0.95);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; backdrop-filter: blur(8px);
+  }
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%; max-width: 380px;
+    text-align: center;
+  }
+  .login-icon { font-size: 40px; margin-bottom: 16px; }
+  .login-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+  .login-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 28px; line-height: 1.5; }
+  .ms-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 12px 20px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); border-radius: 8px; cursor: pointer;
+    font-size: 14px; font-weight: 500; font-family: var(--sans);
+    transition: all 0.2s;
+  }
+  .ms-btn:hover { border-color: var(--accent); background: var(--surface3); }
+  .ms-icon-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; width: 16px; height: 16px;
+  }
+  .ms-icon-grid span { display: block; border-radius: 1px; }
+  .login-note { font-size: 11px; color: var(--text-muted); margin-top: 16px; }
+
+  /* Denied */
+  .denied-card {
+    background: var(--surface);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 16px; padding: 40px;
+    width: 100%; max-width: 380px; text-align: center;
+  }
+  .denied-icon { font-size: 40px; margin-bottom: 16px; }
+  .denied-title { font-size: 18px; font-weight: 700; color: var(--red); margin-bottom: 8px; }
+  .denied-msg { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
+  @media (max-width: 600px) {
+    .action-grid { grid-template-columns: 1fr; }
+    .info-grid { grid-template-columns: 1fr; }
+    .ticket-meta { gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay" style="display:none">
+  <div class="login-card">
+    <div class="login-icon">🎫</div>
+    <div class="login-title">Ver Ticket</div>
+    <div class="login-sub">Inicia sesión con tu cuenta corporativa para ver y gestionar este ticket.</div>
+    <button class="ms-btn" onclick="doLogin()">
+      <div class="ms-icon-grid">
+        <span style="background:#f25022"></span>
+        <span style="background:#7fba00"></span>
+        <span style="background:#00a4ef"></span>
+        <span style="background:#ffb900"></span>
+      </div>
+      Iniciar sesión con Microsoft
+    </button>
+    <div class="login-note">Solo usuarios de SLEPAYSEN.CL pueden acceder</div>
+  </div>
+</div>
+
+<!-- Denied Overlay -->
+<div class="login-overlay" id="deniedOverlay" style="display:none">
+  <div class="denied-card">
+    <div class="denied-icon">🚫</div>
+    <div class="denied-title">Acceso Denegado</div>
+    <div class="denied-msg">Tu cuenta no tiene permisos para gestionar tickets.<br>Contacta al administrador.</div>
+  </div>
+</div>
+
+<div class="page">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon">🖥️</div>
+      <div>
+        <div class="topbar-logo-name">SoporteTI</div>
+        <div class="topbar-logo-sub">Panel de control</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="topbar-user" id="userInfo" style="display:none">
+        <div>
+          <div class="user-name" id="userName">—</div>
+          <div class="role-badge" id="userRole"></div>
+        </div>
+      </div>
+      <a class="btn-back" href="dashboard-soporte.html">← Volver al dashboard</a>
+    </div>
+  </div>
+
+  <!-- Contenido del ticket -->
+  <div id="ticketContent">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div>Cargando ticket...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Acción completada</div>
+
+<script>
+  // ── ROLES ──────────────────────────────────────────────
+  const ROLES = {
+    superadmin: [
+      'claudio.urra@slepaysen.cl',
+      'pablo.gaete@slepaysen.cl'
+    ],
+    agentes: {
+      'Informática / TI': [
+        'matias.munoz@slepaysen.cl',
+        'marcelo.cortes@slepaysen.cl',
+        'pablo.gaete@slepaysen.cl',
+        'soporte@slepaysen.cl'
+      ],
+      'Recursos Humanos': ['gdp@slepaysen.cl'],
+      'Administración': [],
+      'Finanzas': [],
+      'Infraestructura': []
+    }
+  };
+
+  function getUserRole(email) {
+    const e = email.toLowerCase();
+    if (ROLES.superadmin.includes(e)) return { rol: 'superadmin', area: 'Todas las áreas' };
+    for (const [area, emails] of Object.entries(ROLES.agentes)) {
+      if (emails.includes(e)) return { rol: 'agente', area };
+    }
+    return null;
+  }
+
+  // ── MSAL ──────────────────────────────────────────────
+  const msalConfig = {
+    auth: {
+      clientId: '622e605a-8a6d-4177-8494-f48d59e16d1a',
+      authority: 'https://login.microsoftonline.com/fa89b9bd-9842-491b-8e7d-fab4b6179429',
+      redirectUri: 'https://claudio-soporteti.github.io/soporte-ti/ticket-detalle.html'
+    },
+    cache: { cacheLocation: 'sessionStorage' }
+  };
+
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  let currentUser = null;
+  let userRoleInfo = null;
+
+  async function initAuth() {
+    await msalInstance.initialize();
+    try {
+      const response = await msalInstance.handleRedirectPromise();
+      if (response?.account) {
+        currentUser = response.account;
+        msalInstance.setActiveAccount(currentUser);
+      }
+    } catch(e) {}
+
+    if (!currentUser) {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        currentUser = accounts[0];
+        msalInstance.setActiveAccount(currentUser);
+      }
+    }
+
+    if (currentUser) {
+      const email = currentUser.username.toLowerCase();
+      userRoleInfo = getUserRole(email);
+      if (!userRoleInfo) {
+        document.getElementById('deniedOverlay').style.display = 'flex';
+        return;
+      }
+      // Mostrar info usuario
+      document.getElementById('userName').textContent = currentUser.name || currentUser.username;
+      document.getElementById('userRole').textContent = userRoleInfo.rol === 'superadmin' ? '⭐ Superadmin' : `👤 ${userRoleInfo.area}`;
+      document.getElementById('userInfo').style.display = 'flex';
+      // Cargar ticket
+      loadTicket();
+    } else {
+      document.getElementById('loginOverlay').style.display = 'flex';
+    }
+  }
+
+  window.doLogin = async function() {
+    const btn = document.querySelector('.ms-btn');
+    if (btn) { btn.textContent = 'Conectando...'; btn.disabled = true; }
+    try {
+      const response = await msalInstance.loginPopup({ scopes: ['User.Read'] });
+      if (response?.account) {
+        currentUser = response.account;
+        msalInstance.setActiveAccount(currentUser);
+        const email = currentUser.username.toLowerCase();
+        userRoleInfo = getUserRole(email);
+        if (!userRoleInfo) {
+          document.getElementById('loginOverlay').style.display = 'none';
+          document.getElementById('deniedOverlay').style.display = 'flex';
+          return;
+        }
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('userName').textContent = currentUser.name || currentUser.username;
+        document.getElementById('userRole').textContent = userRoleInfo.rol === 'superadmin' ? '⭐ Superadmin' : `👤 ${userRoleInfo.area}`;
+        document.getElementById('userInfo').style.display = 'flex';
+        loadTicket();
+      }
+    } catch(e) {
+      try { await msalInstance.loginRedirect({ scopes: ['User.Read'] }); } catch(e2) {}
+    }
+  };
+
+  function showToast(msg, error = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (error ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  function getEstadoLabel(estado) {
+    const map = {
+      pendiente: '⏳ Pendiente', en_triaje: '🔍 En Triaje',
+      en_progreso: '⚡ En Progreso', resuelto: '✓ Resuelto', cerrado: '🔒 Cerrado'
+    };
+    return map[estado] || estado;
+  }
+
+  function getTipoLabel(tipo) {
+    const map = {
+      soporte_hardware: '🖥️ Hardware', soporte_software: '💻 Software',
+      red_conectividad: '🌐 Red/Conectividad', accesos_permisos: '🔑 Accesos',
+      informacion: 'ℹ️ Información', otro: '📋 Otro'
+    };
+    return map[tipo] || tipo;
+  }
+
+  function formatFecha(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleString('es-CL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch { return iso; }
+  }
+
+  // ── FIREBASE ──────────────────────────────────────────
+</script>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getFirestore, doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyArLMMZ9Bcp2QrQXnWz7pKcZIHeDsH1NDs",
+    authDomain: "tkslepays.firebaseapp.com",
+    projectId: "tkslepays",
+    storageBucket: "tkslepays.firebasestorage.app",
+    messagingSenderId: "312601331313",
+    appId: "1:312601331313:web:e5d33c7e171f3d7cf6fdd0"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Obtener ticketId desde la URL: ?id=XXXXX
+  function getTicketIdFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('id');
+  }
+
+  window.loadTicket = async function() {
+    const ticketId = getTicketIdFromUrl();
+    if (!ticketId) {
+      document.getElementById('ticketContent').innerHTML = `
+        <div class="loading-card">
+          <div style="font-size:32px;margin-bottom:12px">🔍</div>
+          <div style="color:var(--text-dim)">No se especificó ningún ticket.<br>
+          <a href="dashboard-soporte.html" style="color:var(--accent)">← Volver al dashboard</a></div>
+        </div>`;
+      return;
+    }
+
+    try {
+      const docRef = doc(db, 'requerimientos', ticketId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        document.getElementById('ticketContent').innerHTML = `
+          <div class="loading-card">
+            <div style="font-size:32px;margin-bottom:12px">❌</div>
+            <div style="color:var(--text-dim)">Ticket no encontrado.<br>
+            <a href="dashboard-soporte.html" style="color:var(--accent)">← Volver al dashboard</a></div>
+          </div>`;
+        return;
+      }
+
+      const t = { firestoreId: docSnap.id, ...docSnap.data() };
+      renderTicket(t);
+
+    } catch(e) {
+      console.error(e);
+      document.getElementById('ticketContent').innerHTML = `
+        <div class="loading-card">
+          <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+          <div style="color:var(--text-dim)">Error al cargar el ticket. Intenta recargar.</div>
+        </div>`;
+    }
+  };
+
+  function renderTicket(t) {
+    const prioClass = { alta: 'prio-alta', media: 'prio-media', baja: 'prio-baja' }[t.prioridad] || 'prio-baja';
+    const estadoClass = `estado-${t.estado}`;
+    const comentarios = t.comentarios || [];
+
+    const html = `
+      <!-- Header del ticket -->
+      <div class="ticket-header">
+        <div class="ticket-id-row">
+          <span class="ticket-id">${t.ticketId || t.firestoreId}</span>
+          <span class="prio-badge ${prioClass}">🔴 ${t.prioridad || 'normal'}</span>
+          <span class="estado-badge ${estadoClass}">${getEstadoLabel(t.estado)}</span>
+        </div>
+        <div class="ticket-titulo">${t.titulo || 'Sin título'}</div>
+        <div class="ticket-meta">
+          <span>📂 ${getTipoLabel(t.tipo)}</span>
+          <span>📅 ${formatFecha(t.fechaCreacion)}</span>
+          ${t.asignadoA ? `<span>👤 Asignado a: ${t.asignadoA}</span>` : '<span>⚠️ Sin asignar</span>'}
+        </div>
+      </div>
+
+      <!-- Descripción -->
+      <div class="card">
+        <div class="card-title">📋 Descripción del requerimiento</div>
+        <div class="descripcion-text">${t.descripcion || 'Sin descripción.'}</div>
+      </div>
+
+      <!-- Solicitante -->
+      <div class="card">
+        <div class="card-title">👤 Datos del solicitante</div>
+        <div class="info-grid">
+          <div class="info-item">
+            <label>Nombre</label>
+            <span>${t.nombre || '—'}</span>
+          </div>
+          <div class="info-item">
+            <label>Correo</label>
+            <span>${t.email || '—'}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="card">
+        <div class="card-title">⚙️ Gestionar ticket</div>
+        <div class="action-grid">
+          <div>
+            <label class="field-label">Cambiar estado</label>
+            <select class="select-field" id="nuevoEstado">
+              <option value="pendiente" ${t.estado==='pendiente'?'selected':''}>⏳ Pendiente</option>
+              <option value="en_triaje" ${t.estado==='en_triaje'?'selected':''}>🔍 En Triaje</option>
+              <option value="en_progreso" ${t.estado==='en_progreso'?'selected':''}>⚡ En Progreso</option>
+              <option value="resuelto" ${t.estado==='resuelto'?'selected':''}>✓ Resuelto</option>
+              <option value="cerrado" ${t.estado==='cerrado'?'selected':''}>🔒 Cerrado</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Asignar a</label>
+            <select class="select-field" id="nuevoAgente">
+              <option value="">Sin asignar</option>
+              <optgroup label="⭐ Superadmins">
+                <option value="claudio.urra@slepaysen.cl" ${t.asignadoA==='claudio.urra@slepaysen.cl'?'selected':''}>Claudio Urra</option>
+                <option value="pablo.gaete@slepaysen.cl" ${t.asignadoA==='pablo.gaete@slepaysen.cl'?'selected':''}>Pablo Gaete</option>
+              </optgroup>
+              <optgroup label="💻 Informática / TI">
+                <option value="matias.munoz@slepaysen.cl" ${t.asignadoA==='matias.munoz@slepaysen.cl'?'selected':''}>Matías Muñoz</option>
+                <option value="marcelo.cortes@slepaysen.cl" ${t.asignadoA==='marcelo.cortes@slepaysen.cl'?'selected':''}>Marcelo Cortés</option>
+                <option value="soporte@slepaysen.cl" ${t.asignadoA==='soporte@slepaysen.cl'?'selected':''}>Soporte TI</option>
+              </optgroup>
+              <optgroup label="👥 Recursos Humanos">
+                <option value="gdp@slepaysen.cl" ${t.asignadoA==='gdp@slepaysen.cl'?'selected':''}>GDP (RRHH)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label class="field-label">Respuesta / Comentario para el solicitante</label>
+          <textarea class="comment-area" id="comentarioTexto" 
+            placeholder="Escribe aquí la respuesta o notas sobre este ticket..."></textarea>
+        </div>
+
+        <button class="btn-save" onclick="guardarCambios('${t.firestoreId}', '${t.email}', '${t.nombre}', '${t.ticketId || t.firestoreId}')">
+          💾 Guardar cambios y notificar al solicitante
+        </button>
+      </div>
+
+      <!-- Historial de comentarios -->
+      <div class="card">
+        <div class="card-title">💬 Historial de respuestas</div>
+        ${comentarios.length === 0
+          ? '<div class="comentarios-empty">Aún no hay comentarios en este ticket.</div>'
+          : comentarios.map(c => `
+            <div class="comentario-item">
+              <div class="comentario-autor">${c.autor || 'Agente'}</div>
+              <div class="comentario-texto">${c.texto}</div>
+              <div class="comentario-fecha">${formatFecha(c.fecha)}</div>
+            </div>
+          `).join('')
+        }
+      </div>
+    `;
+
+    document.getElementById('ticketContent').innerHTML = html;
+  }
+
+  window.guardarCambios = async function(firestoreId, emailSolicitante, nombreSolicitante, ticketId) {
+    const nuevoEstado = document.getElementById('nuevoEstado').value;
+    const nuevoAgente = document.getElementById('nuevoAgente').value;
+    const comentario = document.getElementById('comentarioTexto').value.trim();
+    const btn = document.querySelector('.btn-save');
+
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    try {
+      const updateData = {
+        estado: nuevoEstado,
+        asignadoA: nuevoAgente || null
+      };
+
+      // Agregar comentario si hay texto
+      if (comentario) {
+        updateData.comentarios = arrayUnion({
+          autor: window.currentUser?.name || window.currentUser?.username || 'Agente',
+          texto: comentario,
+          fecha: new Date().toISOString()
+        });
+      }
+
+      await updateDoc(doc(db, 'requerimientos', firestoreId), updateData);
+
+      // Enviar correo al solicitante si hay comentario o estado cambió a resuelto
+      if (comentario || nuevoEstado === 'resuelto') {
+        await emailjs.send("service_2mvqpfu", "template_03hr8dt", {
+          nombre: nombreSolicitante || 'Solicitante',
+          email: emailSolicitante,
+          ticket_id: ticketId,
+          categoria: '—',
+          prioridad: '—',
+          titulo: `Actualización de tu ticket ${ticketId}`,
+          descripcion: comentario || `Tu ticket ha sido marcado como: ${getEstadoLabel(nuevoEstado)}`
+        });
+        showToast('✅ Cambios guardados y correo enviado al solicitante');
+      } else {
+        showToast('✅ Cambios guardados correctamente');
+      }
+
+      // Recargar el ticket
+      setTimeout(() => window.loadTicket(), 1500);
+
+    } catch(e) {
+      console.error(e);
+      showToast('❌ Error al guardar. Intenta de nuevo.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '💾 Guardar cambios y notificar al solicitante';
+    }
+  };
+
+  // Inicializar auth al cargar
+  document.addEventListener('DOMContentLoaded', initAuth);
+</script>
+</body>
+</html>
