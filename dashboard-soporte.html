@@ -1214,12 +1214,7 @@
     });
   };
 
-  // Esperar DOM antes de inicializar auth
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDashAuth);
-  } else {
-    setTimeout(initDashAuth, 100);
-  }
+  initDashAuth();
 </script>
 
 <!-- Firebase -->
@@ -1855,7 +1850,6 @@ function saveTicket() {
     window.updateTicket(t.firestoreId, 'estado', t.estado);
     window.updateTicket(t.firestoreId, 'asignadoA', t.asignadoA);
   }
-  // Enviar correo al agente si fue asignado o reasignado
   if (t?.asignadoA && t.asignadoA !== anteriorAgente) {
     emailjs.send("service_2mvqpfu", "template_o9ibohn", {
       email_agente: t.asignadoA,
@@ -1914,4 +1908,20 @@ function loadDemoData() {
 function setDate() {
   const now = new Date();
   const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
-  document.getElementById('current-date
+  document.getElementById('current-date').textContent = now.toLocaleDateString('es-CL', opts);
+}
+
+function showView(view) {
+  // Placeholder para navegación futura
+}
+
+// ── INIT ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  setDate();
+  renderKanban(tickets);
+  updateStats();
+  renderActivity();
+});
+</script>
+</body>
+</html>
